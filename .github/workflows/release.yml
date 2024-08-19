@@ -22,16 +22,12 @@ jobs:
       - name: Build the executable
         run: cargo build --release
 
-      - name: Get the current date
-        id: date
-        run: echo "RELEASE_TAG=$(date +'%Y%m%d%H%M%S')" >> $GITHUB_ENV
-
       - name: Create Release
         id: create_release
         uses: actions/create-release@v1
         with:
-          tag_name: ${{ env.RELEASE_TAG }}
-          release_name: Release ${{ env.RELEASE_TAG }}
+          tag_name: v1.0.${{ github.run_number }}
+          release_name: Release v1.0.${{ github.run_number }}
           draft: false
           prerelease: false
           generate_release_notes: true
@@ -45,3 +41,5 @@ jobs:
           asset_path: ./target/release/salsa
           asset_name: salsa
           asset_content_type: application/octet-stream
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}  # Certifique-se que o token está disponível aqui também
