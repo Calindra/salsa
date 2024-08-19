@@ -4,6 +4,12 @@ pub struct Config {
     pub http_port: u16,
 }
 
+impl Default for Config {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 impl Config {
     pub fn new() -> Self {
         Self {

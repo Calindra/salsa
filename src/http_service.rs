@@ -38,8 +38,7 @@ pub fn create_server(config: &Config) -> std::io::Result<actix_server::Server> {
             .service(hint)
             .service(get_app)
     })
-    .bind((config.http_address.as_str(), config.http_port))
-    .map(|t| t)?
+    .bind((config.http_address.as_str(), config.http_port))?
     .run();
     Ok(server)
 }
@@ -130,13 +129,12 @@ async fn get_app() -> HttpResponse {
             let gio_response = serde_json::from_slice::<GIOResponse>(
                 &hyper::body::to_bytes(gio_response)
                     .await
-                    .expect("error get response from rollup_http_server qio request")
-                    .to_vec(),
+                    .expect("error get response from rollup_http_server qio request"),
             )
             .unwrap();
 
             let endpoint = "http://127.0.0.1:5001".to_string();
-            let cid = Cid::try_from(hex::decode(gio_response.response[2..].to_string()).unwrap())
+            let cid = Cid::try_from(hex::decode(&gio_response.response[2..]).unwrap())
                 .unwrap();
 
             // Updates new state using cid received from rollup_http_server qio request
@@ -183,14 +181,13 @@ async fn open_state() -> HttpResponse {
             let gio_response = serde_json::from_slice::<GIOResponse>(
                 &hyper::body::to_bytes(gio_response)
                     .await
-                    .expect("error get response from rollup_http_server qio request")
-                    .to_vec(),
+                    .expect("error get response from rollup_http_server qio request"),
             )
             .unwrap();
 
             let endpoint = "http://127.0.0.1:5001".to_string();
             let client = IpfsClient::from_str(&endpoint).unwrap();
-            let cid = Cid::try_from(hex::decode(gio_response.response[2..].to_string()).unwrap())
+            let cid = Cid::try_from(hex::decode(&gio_response.response[2..]).unwrap())
                 .unwrap();
 
             // Updates new state using cid received from rollup_http_server qio request
@@ -246,11 +243,11 @@ async fn commit_state() -> HttpResponse {
 
     match client.request(req).await {
         Ok(gio_response) => {
-            let gio_response = serde_json::from_slice::<GIOResponse>(
-                &hyper::body::to_bytes(gio_response)
+            let response_bytes = hyper::body::to_bytes(gio_response)
                     .await
-                    .expect("error get response from rollup_http_server qio request")
-                    .to_vec(),
+                    .expect("error get response from rollup_http_server qio request");
+            let gio_response = serde_json::from_slice::<GIOResponse>(
+                &response_bytes,
             )
             .unwrap();
 
@@ -291,14 +288,13 @@ async fn get_metadata(text: web::Path<String>) -> HttpResponse {
             let gio_response = serde_json::from_slice::<GIOResponse>(
                 &hyper::body::to_bytes(gio_response)
                     .await
-                    .expect("error get response from rollup_http_server qio request")
-                    .to_vec(),
+                    .expect("error get response from rollup_http_server qio request"),
             )
             .unwrap();
 
             HttpResponse::Ok()
                 .append_header((hyper::header::CONTENT_TYPE, "application/octet-stream"))
-                .body(hex::decode(gio_response.response[2..].to_string()).unwrap())
+                .body(hex::decode(&gio_response.response[2..]).unwrap())
         }
         Err(e) => {
             log::error!("failed to handle get_metadata request: {}", e);
@@ -329,14 +325,13 @@ async fn ipfs_put(content: Bytes, cid: web::Path<String>) -> HttpResponse {
             let gio_response = serde_json::from_slice::<GIOResponse>(
                 &hyper::body::to_bytes(gio_response)
                     .await
-                    .expect("error get response from rollup_http_server gio request")
-                    .to_vec(),
+                    .expect("error get response from rollup_http_server gio request"),
             )
             .unwrap();
 
             HttpResponse::Ok()
                 .append_header((hyper::header::CONTENT_TYPE, "application/octet-stream"))
-                .body(hex::decode(gio_response.response[2..].to_string()).unwrap())
+                .body(hex::decode(&gio_response.response[2..]).unwrap())
         }
         Err(e) => {
             log::error!("failed to handle ipfs_put request: {}", e);
@@ -373,14 +368,13 @@ async fn ipfs_get(cid: web::Path<String>) -> HttpResponse {
             let gio_response = serde_json::from_slice::<GIOResponse>(
                 &hyper::body::to_bytes(gio_response)
                     .await
-                    .expect("error get response from rollup_http_server gio request")
-                    .to_vec(),
+                    .expect("error get response from rollup_http_server gio request"),
             )
             .unwrap();
 
             HttpResponse::Ok()
                 .append_header((hyper::header::CONTENT_TYPE, "application/octet-stream"))
-                .body(hex::decode(gio_response.response[2..].to_string()).unwrap())
+                .body(hex::decode(&gio_response.response[2..]).unwrap())
         }
         Err(e) => {
             log::error!("failed to handle ipfs_put request: {}", e);
@@ -420,14 +414,13 @@ async fn get_data(path: web::Path<(String, String)>) -> HttpResponse {
             let gio_response = serde_json::from_slice::<GIOResponse>(
                 &hyper::body::to_bytes(gio_response)
                     .await
-                    .expect("error get response from rollup_http_server qio request")
-                    .to_vec(),
+                    .expect("error get response from rollup_http_server qio request"),
             )
             .unwrap();
 
             HttpResponse::Ok()
                 .append_header((hyper::header::CONTENT_TYPE, "application/octet-stream"))
-                .body(hex::decode(gio_response.response[2..].to_string()).unwrap())
+                .body(hex::decode(&gio_response.response[2..]).unwrap())
         }
         Err(e) => {
             log::error!("failed to handle get_data request: {}", e);
@@ -459,14 +452,13 @@ async fn hint(what: web::Path<String>) -> HttpResponse {
             let gio_response = serde_json::from_slice::<GIOResponse>(
                 &hyper::body::to_bytes(gio_response)
                     .await
-                    .expect("error get response from rollup_http_server gio request")
-                    .to_vec(),
+                    .expect("error get response from rollup_http_server gio request"),
             )
             .unwrap();
 
             HttpResponse::Ok()
                 .append_header((hyper::header::CONTENT_TYPE, "application/octet-stream"))
-                .body(hex::decode(gio_response.response[2..].to_string()).unwrap())
+                .body(hex::decode(&gio_response.response[2..]).unwrap())
         }
         Err(e) => {
             log::error!("failed to handle hint request: {}", e);
