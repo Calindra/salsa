@@ -54,12 +54,12 @@ async fn main() -> std::io::Result<()> {
         .init();
 
     // Check if there are enough arguments to start the dapp
-    if matches.free.is_empty() {
-        return Err(std::io::Error::new(
-            ErrorKind::InvalidInput,
-            "expected dapp command after flags",
-        ));
-    }
+    // if matches.free.is_empty() {
+    //     return Err(std::io::Error::new(
+    //         ErrorKind::InvalidInput,
+    //         "expected dapp command after flags",
+    //     ));
+    // }
 
     log::info!("starting http dispatcher service...");
 
