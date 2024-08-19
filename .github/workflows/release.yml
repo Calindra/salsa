@@ -42,4 +42,4 @@ jobs:
           asset_name: salsa
           asset_content_type: application/octet-stream
         env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}  # Certifique-se que o token está disponível aqui também
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}

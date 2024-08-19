@@ -1,0 +1,172 @@
+openapi: 3.0.0
+info:
+  title: State Management and IPFS Interaction API
+  description: This API provides endpoints for managing state, interacting with IPFS, and communicating with a rollup server.
+  version: 1.0.0
+servers:
+  - url: http://localhost:8080
+paths:
+  /delete_state/{key}:
+    delete:
+      summary: Deletes the state associated with a specific key.
+      parameters:
+        - name: key
+          in: path
+          required: true
+          schema:
+            type: string
+          description: The key of the state to delete.
+      responses:
+        '200':
+          description: State successfully deleted.
+        '500':
+          description: Failed to delete the state.
+  /set_state/{key}:
+    post:
+      summary: Sets a state with the given key and associated data.
+      parameters:
+        - name: key
+          in: path
+          required: true
+          schema:
+            type: string
+          description: The key of the state to set.
+      requestBody:
+        required: true
+        content:
+          application/octet-stream:
+            schema:
+              type: string
+              format: binary
+      responses:
+        '200':
+          description: State successfully set.
+        '500':
+          description: Failed to set the state.
+  /get_state/{key}:
+    get:
+      summary: Retrieves the state associated with a specific key.
+      parameters:
+        - name: key
+          in: path
+          required: true
+          schema:
+            type: string
+          description: The key of the state to retrieve.
+      responses:
+        '200':
+          description: State successfully retrieved.
+        '500':
+          description: Failed to retrieve the state.
+  /open_state:
+    get:
+      summary: Requests and opens the current state based on a GIO request.
+      responses:
+        '200':
+          description: State successfully opened.
+        '400':
+          description: Failed to open the state.
+  /commit_state:
+    get:
+      summary: Commits the current state by sending a GIO request to a rollup server.
+      responses:
+        '200':
+          description: State successfully committed.
+        '400':
+          description: Failed to commit the state.
+  /metadata/{text}:
+    get:
+      summary: Fetches metadata associated with the provided text.
+      parameters:
+        - name: text
+          in: path
+          required: true
+          schema:
+            type: string
+          description: The text whose metadata is to be fetched.
+      responses:
+        '200':
+          description: Metadata successfully retrieved.
+        '400':
+          description: Failed to fetch metadata.
+  /ipfs/put/{cid}:
+    put:
+      summary: Uploads data to IPFS and externalizes the state.
+      parameters:
+        - name: cid
+          in: path
+          required: true
+          schema:
+            type: string
+          description: The CID of the data being uploaded.
+      requestBody:
+        required: true
+        content:
+          application/octet-stream:
+            schema:
+              type: string
+              format: binary
+      responses:
+        '200':
+          description: Data successfully uploaded to IPFS.
+        '400':
+          description: Failed to upload data to IPFS.
+  /ipfs/has/{cid}:
+    head:
+      summary: Checks if a specific CID exists on IPFS.
+      parameters:
+        - name: cid
+          in: path
+          required: true
+          schema:
+            type: string
+          description: The CID to check for existence.
+      responses:
+        '200':
+          description: CID exists.
+        '404':
+          description: CID does not exist.
+  /ipfs/get/{cid}:
+    get:
+      summary: Fetches data from IPFS by CID.
+      parameters:
+        - name: cid
+          in: path
+          required: true
+          schema:
+            type: string
+          description: The CID of the data to retrieve.
+      responses:
+        '200':
+          description: Data successfully retrieved from IPFS.
+        '400':
+          description: Failed to retrieve data from IPFS.
+  /get_data/{namespace}/{data_id}:
+    get:
+      summary: Fetches data based on a namespace and data ID.
+      parameters:
+        - name: namespace
+          in: path
+          required: true
+          schema:
+            type: string
+          description: The namespace (e.g., `keccak256`).
+        - name: data_id
+          in: path
+          required: true
+          schema:
+            type: string
+          description: The ID of the data to retrieve.
+      responses:
+        '200':
+          description: Data successfully retrieved.
+        '400':
+          description: Failed to retrieve data.
+  /get_app:
+    get:
+      summary: Fetches the current app state using a GIO request.
+      responses:
+        '200':
+          description: App state successfully retrieved.
+        '400':
+          description: Failed to retrieve app state.

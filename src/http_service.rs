@@ -51,7 +51,6 @@ pub async fn run(config: &Config, server_ready: Arc<Notify>) -> std::io::Result<
     server.await
 }
 
-
 // Deletes state with a particular key
 #[actix_web::delete("/delete_state/{key}")]
 async fn delete_state(key: web::Path<String>) -> HttpResponse {
@@ -134,8 +133,7 @@ async fn get_app() -> HttpResponse {
             .unwrap();
 
             let endpoint = "http://127.0.0.1:5001".to_string();
-            let cid = Cid::try_from(hex::decode(&gio_response.response[2..]).unwrap())
-                .unwrap();
+            let cid = Cid::try_from(hex::decode(&gio_response.response[2..]).unwrap()).unwrap();
 
             // Updates new state using cid received from rollup_http_server qio request
             let client = IpfsClient::from_str(&endpoint).unwrap();
@@ -187,8 +185,7 @@ async fn open_state() -> HttpResponse {
 
             let endpoint = "http://127.0.0.1:5001".to_string();
             let client = IpfsClient::from_str(&endpoint).unwrap();
-            let cid = Cid::try_from(hex::decode(&gio_response.response[2..]).unwrap())
-                .unwrap();
+            let cid = Cid::try_from(hex::decode(&gio_response.response[2..]).unwrap()).unwrap();
 
             // Updates new state using cid received from rollup_http_server qio request
             client
@@ -243,11 +240,11 @@ async fn commit_state() -> HttpResponse {
 
     match client.request(req).await {
         Ok(gio_response) => {
-            let response_bytes = hyper::body::to_bytes(gio_response)
+            let _gio_response = serde_json::from_slice::<GIOResponse>(
+                &hyper::body::to_bytes(gio_response)
                     .await
-                    .expect("error get response from rollup_http_server qio request");
-            let gio_response = serde_json::from_slice::<GIOResponse>(
-                &response_bytes,
+                    .expect("error get response from rollup_http_server qio request")
+                    .to_vec(),
             )
             .unwrap();
 
@@ -304,7 +301,7 @@ async fn get_metadata(text: web::Path<String>) -> HttpResponse {
 }
 
 #[actix_web::put("/ipfs/put/{cid}")]
-async fn ipfs_put(content: Bytes, cid: web::Path<String>) -> HttpResponse {
+async fn ipfs_put(content: Bytes, _cid: web::Path<String>) -> HttpResponse {
     let gio_request = GIORequest {
         domain: EXTERNALIZE_STATE,
         payload: format!("0x{}", hex::encode(content)),
@@ -341,7 +338,7 @@ async fn ipfs_put(content: Bytes, cid: web::Path<String>) -> HttpResponse {
 }
 
 #[actix_web::head("/ipfs/has/{cid}")]
-async fn ipfs_has(cid: web::Path<String>) -> HttpResponse {
+async fn ipfs_has(_cid: web::Path<String>) -> HttpResponse {
     HttpResponse::new(actix_web::http::StatusCode::from_u16(200).unwrap())
 }
 
