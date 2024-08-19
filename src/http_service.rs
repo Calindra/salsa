@@ -2,8 +2,8 @@ use std::sync::Arc;
 
 use crate::config::Config;
 use crate::rollup::{GIORequest, GIOResponse};
-use actix_web::web;
 use actix_web::web::{Bytes, BytesMut};
+use actix_web::{get, web};
 use actix_web::{middleware::Logger, App, HttpResponse, HttpServer};
 use cid::Cid;
 use futures::StreamExt;
@@ -11,6 +11,8 @@ use ipfs_api_backend_hyper::{IpfsApi, IpfsClient, TryFromUri};
 use sha3::{Digest, Sha3_256};
 use std::io::Cursor;
 use tokio::sync::Notify;
+use utoipa::OpenApi;
+use utoipa_swagger_ui::SwaggerUi;
 
 const CURRENT_STATE_CID: u16 = 0x20;
 const SET_STATE_CID: u16 = 0x21;
@@ -19,6 +21,23 @@ const KECCAK256_NAMESPACE: u16 = 0x23;
 const EXTERNALIZE_STATE: u16 = 0x24;
 const IPFS_GET_BLOCK: u16 = 0x25;
 const HINT: u16 = 0x26;
+
+#[derive(OpenApi)]
+#[openapi(paths(
+    // open_state,
+    // commit_state,
+    // delete_state,
+    // set_state,
+    // get_state,
+    // get_metadata,
+    // get_data,
+    // ipfs_get,
+    // ipfs_put,
+    // ipfs_has,
+    // hint,
+    crate::http_service::get_app
+))]
+struct ApiDoc;
 
 /// Create new instance of http server
 pub fn create_server(config: &Config) -> std::io::Result<actix_server::Server> {
@@ -37,6 +56,7 @@ pub fn create_server(config: &Config) -> std::io::Result<actix_server::Server> {
             .service(ipfs_has)
             .service(hint)
             .service(get_app)
+            .service(SwaggerUi::new("/swagger-ui/{_:.*}").url("/api-docs/openapi.json", ApiDoc::openapi()))
     })
     .bind((config.http_address.as_str(), config.http_port))?
     .run();
@@ -102,7 +122,12 @@ async fn get_state(key: web::Path<String>) -> HttpResponse {
         .body(result.freeze())
 }
 
-#[actix_web::get("/get_app")]
+#[utoipa::path(
+    responses(
+        (status = 200, description = "Hello from api 1", body = String)
+    )
+)]
+#[get("/get_app")]
 async fn get_app() -> HttpResponse {
     let mut hasher = Sha3_256::new();
     hasher.update("lambada-app".as_bytes());
