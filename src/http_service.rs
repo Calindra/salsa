@@ -246,7 +246,7 @@ async fn commit_state() -> HttpResponse {
 
     match client.request(req).await {
         Ok(gio_response) => {
-            let gio_response = serde_json::from_slice::<GIOResponse>(
+            let _gio_response = serde_json::from_slice::<GIOResponse>(
                 &hyper::body::to_bytes(gio_response)
                     .await
                     .expect("error get response from rollup_http_server qio request")
@@ -308,7 +308,7 @@ async fn get_metadata(text: web::Path<String>) -> HttpResponse {
 }
 
 #[actix_web::put("/ipfs/put/{cid}")]
-async fn ipfs_put(content: Bytes, cid: web::Path<String>) -> HttpResponse {
+async fn ipfs_put(content: Bytes, _cid: web::Path<String>) -> HttpResponse {
     let gio_request = GIORequest {
         domain: EXTERNALIZE_STATE,
         payload: format!("0x{}", hex::encode(content)),
@@ -346,7 +346,7 @@ async fn ipfs_put(content: Bytes, cid: web::Path<String>) -> HttpResponse {
 }
 
 #[actix_web::head("/ipfs/has/{cid}")]
-async fn ipfs_has(cid: web::Path<String>) -> HttpResponse {
+async fn ipfs_has(_cid: web::Path<String>) -> HttpResponse {
     HttpResponse::new(actix_web::http::StatusCode::from_u16(200).unwrap())
 }
 

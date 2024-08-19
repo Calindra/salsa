@@ -2,7 +2,7 @@ use std::io::ErrorKind;
 use std::sync::Arc;
 
 use getopts::{Options, ParsingStyle};
-use salsa::{config::Config, http_service};
+use salsa::{config::Config, dapp_process, http_service};
 use tokio::sync::Notify;
 
 fn print_usage(program: &str, opts: Options) {
@@ -53,14 +53,6 @@ async fn main() -> std::io::Result<()> {
         .format_timestamp(None)
         .init();
 
-    // Check if there are enough arguments to start the dapp
-    // if matches.free.is_empty() {
-    //     return Err(std::io::Error::new(
-    //         ErrorKind::InvalidInput,
-    //         "expected dapp command after flags",
-    //     ));
-    // }
-
     log::info!("starting http dispatcher service...");
 
     // Create config
@@ -82,14 +74,16 @@ async fn main() -> std::io::Result<()> {
 
     let server_ready = Arc::new(Notify::new());
 
-    // In another thread, wait until the server is ready and then start the dapp
-    // {
-    //     let server_ready = server_ready.clone();
-    //     tokio::spawn(async move {
-    //         server_ready.notified().await;
-    //         dapp_process::run(matches.free).await;
-    //     })
-    // };
+    //In another thread, wait until the server is ready and then start the dapp
+    if !matches.free.is_empty() {
+        let server_ready = server_ready.clone();
+        tokio::spawn(async move {
+            server_ready.notified().await;
+            dapp_process::run(matches.free).await;
+        });
+    } else {
+        log::warn!("No command provided for dapp_process. Skipping dapp_process execution.");
+    }
 
     // Open http service
     tokio::select! {
