@@ -16,46 +16,73 @@
 
 #[cfg(test)]
 mod tests {
-    // extern crate lambada_http_server;
-    // extern crate rollup_http_client;
-    // extern crate test_gio_server;
     use actix_server::ServerHandle;
-    use hyper::StatusCode;
-    // use lambada_http_server::config::Config;
-    // use lambada_http_server::*;
-    // use rollup_http_client::rollup::GIORequest;
+    use http_body_util::{Empty, Full};
+    use hyper::{
+        body::{Bytes, Incoming},
+        server::conn::http1,
+        service::service_fn,
+        Method, Request, Response, StatusCode,
+    };
+    use hyper_util::rt::TokioIo;
     use rstest::*;
-    use std::future::Future;
-    // use test_gio_server::start_server;
-    use tokio::sync::oneshot;
-    use tokio::task;
+    use salsa::{config::Config, http_service, utils};
+    use serde::{Deserialize, Serialize};
+    use serde_json::json;
+    use std::{convert::Infallible, future::Future, net::SocketAddr};
+    use tokio::{net::TcpListener, sync::oneshot, task};
+    use tower::ServiceBuilder;
     const HOST: &str = "127.0.0.1";
 
-    #[allow(dead_code)]
-    struct Config {
-        http_address: String,
-        http_port: u16,
-    }
-
-    #[derive(serde::Serialize)]
+    #[derive(Debug, Clone, Serialize, Deserialize)]
     struct GIORequest {
         domain: u32,
         payload: String,
     }
 
-    #[allow(non_camel_case_types)]
-    struct http_service {}
+    #[derive(Debug, Clone, Serialize, Deserialize)]
+    pub struct GIOResponse {
+        pub response_code: u16,
+        pub response: String,
+    }
 
-    impl http_service {
-        fn create_server(config: &Config) -> std::io::Result<actix_server::Server> {
-            // let addr = format!("{}:{}", config.http_address, config.http_port);
-            panic!("Not implemented yet");
+    async fn handle_request(req: Request<Incoming>) -> Result<Response<Full<Bytes>>, Infallible> {
+        match (req.method(), req.uri().path()) {
+            (&Method::POST, "/gio") => {
+                let result = GIOResponse {
+                    response_code: 0,
+                    response: "0x".to_string(),
+                };
+                Ok(Response::new(utils::body_bytes(json!(result).to_string())))
+            }
+            _ => {
+                let not_found = Response::builder()
+                    .status(404)
+                    .body(utils::body_bytes("404 Not Found".to_string()))
+                    .unwrap();
+                Ok(not_found)
+            }
         }
     }
 
-    fn start_server(tx: oneshot::Sender<()>) -> impl Future<Output = ()> {
-        async move {
-            let _ = tx.send(());
+    async fn start_server(tx: oneshot::Sender<()>) {
+        let addr = SocketAddr::from(([127, 0, 0, 1], 5004));
+        let listener = TcpListener::bind(addr).await.unwrap();
+
+        let _ = tx.send(());
+
+        loop {
+            let (stream, _) = listener.accept().await.unwrap();
+            let io = TokioIo::new(stream);
+
+            tokio::spawn(async move {
+                let svc = service_fn(handle_request);
+                let svc = ServiceBuilder::new().service(svc);
+
+                if let Err(e) = http1::Builder::new().serve_connection(io, svc).await {
+                    eprintln!("Server error: {}", e);
+                }
+            });
         }
     }
 
@@ -89,7 +116,7 @@ mod tests {
         Ok(Some(server_handle))
     }
     #[rstest]
-    #[tokio::test]
+    #[actix_web::test]
     async fn test_server() {
         let (tx, rx) = oneshot::channel();
         let server_task = task::spawn(start_server(tx));
@@ -98,13 +125,13 @@ mod tests {
             domain: 0x100,
             payload: hex::encode(vec![0, 0, 0]),
         };
-        let client = hyper::Client::new();
+        let client = utils::create_client();
 
         let req = hyper::Request::builder()
             .method(hyper::Method::POST)
             .header(hyper::header::CONTENT_TYPE, "application/json")
             .uri("http://127.0.0.1:5004/gio")
-            .body(hyper::Body::from(
+            .body(utils::body_bytes(
                 serde_json::to_string(&gio_request).unwrap(),
             ))
             .expect("gio request");
@@ -154,16 +181,16 @@ mod tests {
         let server_task = task::spawn(start_server(tx));
         let _ = rx.await.expect("Server failed to start");
         let context = context_future.await;
-        let client = hyper::Client::new();
+        let client = utils::create_client();
         let req = hyper::Request::builder()
             .method(hyper::Method::GET)
             .header(hyper::header::CONTENT_TYPE, "application/json")
             .uri(context.lambada_address.clone() + "/open_state")
-            .body(hyper::Body::empty())
+            .body(Empty::<Bytes>::new())
             .expect("open_state request");
         match client.request(req).await {
             Ok(gio_response) => {
-                let body = hyper::body::to_bytes(gio_response)
+                let body = utils::response_to_bytes(gio_response)
                     .await
                     .expect("error get response from rollup_http_server qio request")
                     .to_vec();
@@ -189,16 +216,16 @@ mod tests {
         let server_task = task::spawn(start_server(tx));
         let _ = rx.await.expect("Server failed to start");
         let context = context_future.await;
-        let client = hyper::Client::new();
+        let client = utils::create_client();
         let req = hyper::Request::builder()
             .method(hyper::Method::GET)
             .header(hyper::header::CONTENT_TYPE, "application/json")
             .uri(context.lambada_address.clone() + "/commit_state")
-            .body(hyper::Body::empty())
+            .body(Empty::<Bytes>::new())
             .expect("commit_state request");
         match client.request(req).await {
             Ok(res) => {
-                let body = hyper::body::to_bytes(res)
+                let body = utils::response_to_bytes(res)
                     .await
                     .expect("error get response from rollup_http_server qio request")
                     .to_vec();
@@ -225,16 +252,16 @@ mod tests {
         let server_task = task::spawn(start_server(tx));
         let _ = rx.await.expect("Server failed to start");
         let context = context_future.await;
-        let client = hyper::Client::new();
+        let client = utils::create_client();
         let req = hyper::Request::builder()
             .method(hyper::Method::GET)
             .header(hyper::header::CONTENT_TYPE, "application/json")
             .uri(context.lambada_address.clone() + "/metadata/some_test_text")
-            .body(hyper::Body::empty())
+            .body(Empty::<Bytes>::new())
             .expect("metadata request");
         match client.request(req).await {
             Ok(res) => {
-                let body = hyper::body::to_bytes(res)
+                let body = utils::response_to_bytes(res)
                     .await
                     .expect("error get response from rollup_http_server qio request")
                     .to_vec();
@@ -262,19 +289,19 @@ mod tests {
         let _ = rx.await.expect("Server failed to start");
         let context = context_future.await;
 
-        let client = hyper::Client::new();
+        let client = utils::create_client();
         let req = hyper::Request::builder()
             .method(hyper::Method::GET)
             .header(hyper::header::CONTENT_TYPE, "application/json")
             .uri(context.lambada_address.clone() + "/get_data/keccak256/data_id")
-            .body(hyper::Body::empty())
+            .body(Empty::<Bytes>::new())
             .expect("get_data request");
         match client.request(req).await {
             Ok(res) => {
                 println!("output {:?}", res);
                 match res.status() {
                     StatusCode::BAD_REQUEST => {
-                        let body = hyper::body::to_bytes(res)
+                        let body = utils::response_to_bytes(res)
                             .await
                             .expect("error get response from rollup_http_server qio request")
                             .to_vec();
@@ -284,7 +311,7 @@ mod tests {
                         panic!()
                     }
                     _ => {
-                        let body = hyper::body::to_bytes(res)
+                        let body = utils::response_to_bytes(res)
                             .await
                             .expect("error get response from rollup_http_server qio request")
                             .to_vec();
@@ -313,19 +340,19 @@ mod tests {
         let _ = rx.await.expect("Server failed to start");
         let context = context_future.await;
 
-        let client = hyper::Client::new();
+        let client = utils::create_client();
         let req = hyper::Request::builder()
             .method(hyper::Method::GET)
             .header(hyper::header::CONTENT_TYPE, "application/json")
             .uri(context.lambada_address.clone() + "/get_data/namespace/data_id")
-            .body(hyper::Body::empty())
+            .body(Empty::<Bytes>::new())
             .expect("get_data request");
         match client.request(req).await {
             Ok(res) => {
                 println!("output {:?}", res);
                 match res.status() {
                     StatusCode::BAD_REQUEST => {
-                        let body = hyper::body::to_bytes(res)
+                        let body = utils::response_to_bytes(res)
                             .await
                             .expect("error get response from rollup_http_server qio request")
                             .to_vec();
@@ -335,7 +362,7 @@ mod tests {
                         panic!()
                     }
                     _ => {
-                        let body = hyper::body::to_bytes(res)
+                        let body = utils::response_to_bytes(res)
                             .await
                             .expect("error get response from rollup_http_server qio request")
                             .to_vec();

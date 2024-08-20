@@ -2,11 +2,14 @@ use std::sync::Arc;
 
 use crate::config::Config;
 use crate::rollup::{GIORequest, GIOResponse};
+use crate::utils;
+use actix_web::http::header::ContentType;
 use actix_web::web;
 use actix_web::web::{Bytes, BytesMut};
 use actix_web::{middleware::Logger, App, HttpResponse, HttpServer};
 use cid::Cid;
 use futures::StreamExt;
+use http_body_util::BodyExt;
 use ipfs_api_backend_hyper::{IpfsApi, IpfsClient, TryFromUri};
 use sha3::{Digest, Sha3_256};
 use std::io::Cursor;
@@ -112,21 +115,21 @@ async fn get_app() -> HttpResponse {
         payload: format!("0x{}", hex::encode(hash_result)),
     };
 
-    let client = hyper::Client::new();
+    let client = utils::create_client();
 
     //Request for getting state_cid from rollup_http_server qio request
     let req = hyper::Request::builder()
         .method(hyper::Method::POST)
         .header(hyper::header::CONTENT_TYPE, "application/json")
         .uri("http://127.0.0.1:5004/gio")
-        .body(hyper::Body::from(
+        .body(utils::body_bytes(
             serde_json::to_string(&gio_request).unwrap(),
         ))
         .expect("gio request");
     match client.request(req).await {
         Ok(gio_response) => {
             let gio_response = serde_json::from_slice::<GIOResponse>(
-                &hyper::body::to_bytes(gio_response)
+                &utils::response_to_bytes(gio_response)
                     .await
                     .expect("error get response from rollup_http_server qio request"),
             )
@@ -145,7 +148,7 @@ async fn get_app() -> HttpResponse {
                 .unwrap();
 
             HttpResponse::Ok()
-                .append_header((hyper::header::CONTENT_TYPE, "application/octet-stream"))
+                .append_header(ContentType::octet_stream())
                 .body(cid.to_string())
         }
         Err(e) => {
@@ -163,21 +166,21 @@ async fn open_state() -> HttpResponse {
         payload: "0x".to_string(),
     };
 
-    let client = hyper::Client::new();
+    let client = utils::create_client();
 
     //Request for getting state_cid from rollup_http_server qio request
     let req = hyper::Request::builder()
         .method(hyper::Method::POST)
         .header(hyper::header::CONTENT_TYPE, "application/json")
         .uri("http://127.0.0.1:5004/gio")
-        .body(hyper::Body::from(
+        .body(utils::body_bytes(
             serde_json::to_string(&gio_request).unwrap(),
         ))
         .expect("gio request");
     match client.request(req).await {
         Ok(gio_response) => {
             let gio_response = serde_json::from_slice::<GIOResponse>(
-                &hyper::body::to_bytes(gio_response)
+                &utils::response_to_bytes(gio_response)
                     .await
                     .expect("error get response from rollup_http_server qio request"),
             )
@@ -204,7 +207,7 @@ async fn open_state() -> HttpResponse {
             client.files_mv("/state-new", "/state").await.unwrap();
 
             HttpResponse::Ok()
-                .append_header((hyper::header::CONTENT_TYPE, "application/octet-stream"))
+                .append_header(ContentType::octet_stream())
                 .body(Vec::new())
         }
         Err(e) => {
@@ -226,14 +229,14 @@ async fn commit_state() -> HttpResponse {
         domain: SET_STATE_CID,
         payload: format!("0x{}", hex::encode(cid_bytes)),
     };
-    let client = hyper::Client::new();
+    let client = utils::create_client();
 
     // rollup_http_server gio request with cid received from /state
     let req = hyper::Request::builder()
         .method(hyper::Method::POST)
         .header(hyper::header::CONTENT_TYPE, "application/json")
         .uri("http://127.0.0.1:5004/gio")
-        .body(hyper::Body::from(
+        .body(utils::body_bytes(
             serde_json::to_string(&gio_request).unwrap(),
         ))
         .expect("gio request");
@@ -241,7 +244,7 @@ async fn commit_state() -> HttpResponse {
     match client.request(req).await {
         Ok(gio_response) => {
             let _gio_response = serde_json::from_slice::<GIOResponse>(
-                &hyper::body::to_bytes(gio_response)
+                &utils::response_to_bytes(gio_response)
                     .await
                     .expect("error get response from rollup_http_server qio request")
                     .to_vec(),
@@ -249,7 +252,7 @@ async fn commit_state() -> HttpResponse {
             .unwrap();
 
             HttpResponse::Ok()
-                .append_header((hyper::header::CONTENT_TYPE, "application/octet-stream"))
+                .append_header(ContentType::octet_stream())
                 .body(Vec::new())
         }
         Err(e) => {
@@ -269,13 +272,13 @@ async fn get_metadata(text: web::Path<String>) -> HttpResponse {
         domain: METADATA,
         payload: format!("0x{}", hex::encode(hash_result)),
     };
-    let client = hyper::Client::new();
+    let client = utils::create_client();
 
     let req = hyper::Request::builder()
         .method(hyper::Method::POST)
         .header(hyper::header::CONTENT_TYPE, "application/json")
         .uri("http://127.0.0.1:5004/gio")
-        .body(hyper::Body::from(
+        .body(utils::body_bytes(
             serde_json::to_string(&gio_request).unwrap(),
         ))
         .expect("gio request");
@@ -283,14 +286,14 @@ async fn get_metadata(text: web::Path<String>) -> HttpResponse {
     match client.request(req).await {
         Ok(gio_response) => {
             let gio_response = serde_json::from_slice::<GIOResponse>(
-                &hyper::body::to_bytes(gio_response)
+                &utils::response_to_bytes(gio_response)
                     .await
                     .expect("error get response from rollup_http_server qio request"),
             )
             .unwrap();
 
             HttpResponse::Ok()
-                .append_header((hyper::header::CONTENT_TYPE, "application/octet-stream"))
+                .append_header(ContentType::octet_stream())
                 .body(hex::decode(&gio_response.response[2..]).unwrap())
         }
         Err(e) => {
@@ -306,13 +309,13 @@ async fn ipfs_put(content: Bytes, _cid: web::Path<String>) -> HttpResponse {
         domain: EXTERNALIZE_STATE,
         payload: format!("0x{}", hex::encode(content)),
     };
-    let client = hyper::Client::new();
+    let client = utils::create_client();
 
     let req = hyper::Request::builder()
         .method(hyper::Method::POST)
         .header(hyper::header::CONTENT_TYPE, "application/json")
         .uri("http://127.0.0.1:5004/gio")
-        .body(hyper::Body::from(
+        .body(utils::body_bytes(
             serde_json::to_string(&gio_request).unwrap(),
         ))
         .expect("gio request");
@@ -320,14 +323,14 @@ async fn ipfs_put(content: Bytes, _cid: web::Path<String>) -> HttpResponse {
     match client.request(req).await {
         Ok(gio_response) => {
             let gio_response = serde_json::from_slice::<GIOResponse>(
-                &hyper::body::to_bytes(gio_response)
+                &utils::response_to_bytes(gio_response)
                     .await
                     .expect("error get response from rollup_http_server gio request"),
             )
             .unwrap();
 
             HttpResponse::Ok()
-                .append_header((hyper::header::CONTENT_TYPE, "application/octet-stream"))
+                .append_header(ContentType::octet_stream())
                 .body(hex::decode(&gio_response.response[2..]).unwrap())
         }
         Err(e) => {
@@ -349,13 +352,13 @@ async fn ipfs_get(cid: web::Path<String>) -> HttpResponse {
         domain: IPFS_GET_BLOCK,
         payload: format!("0x{}", hex::encode(Cid::try_from(cid).unwrap().to_bytes())),
     };
-    let client = hyper::Client::new();
+    let client = utils::create_client();
 
     let req = hyper::Request::builder()
         .method(hyper::Method::POST)
         .header(hyper::header::CONTENT_TYPE, "application/json")
         .uri("http://127.0.0.1:5004/gio")
-        .body(hyper::Body::from(
+        .body(utils::body_bytes(
             serde_json::to_string(&gio_request).unwrap(),
         ))
         .expect("gio request");
@@ -363,14 +366,14 @@ async fn ipfs_get(cid: web::Path<String>) -> HttpResponse {
     match client.request(req).await {
         Ok(gio_response) => {
             let gio_response = serde_json::from_slice::<GIOResponse>(
-                &hyper::body::to_bytes(gio_response)
+                &utils::response_to_bytes(gio_response)
                     .await
                     .expect("error get response from rollup_http_server gio request"),
             )
             .unwrap();
 
             HttpResponse::Ok()
-                .append_header((hyper::header::CONTENT_TYPE, "application/octet-stream"))
+                .append_header(ContentType::octet_stream())
                 .body(hex::decode(&gio_response.response[2..]).unwrap())
         }
         Err(e) => {
@@ -395,13 +398,13 @@ async fn get_data(path: web::Path<(String, String)>) -> HttpResponse {
         domain: KECCAK256_NAMESPACE,
         payload: format!("0x{}", hex::encode(data_id_as_bytes)),
     };
-    let client = hyper::Client::new();
+    let client = utils::create_client();
 
     let req = hyper::Request::builder()
         .method(hyper::Method::POST)
         .header(hyper::header::CONTENT_TYPE, "application/json")
         .uri("http://127.0.0.1:5004/gio")
-        .body(hyper::Body::from(
+        .body(utils::body_bytes(
             serde_json::to_string(&gio_request).unwrap(),
         ))
         .expect("gio request");
@@ -409,14 +412,14 @@ async fn get_data(path: web::Path<(String, String)>) -> HttpResponse {
     match client.request(req).await {
         Ok(gio_response) => {
             let gio_response = serde_json::from_slice::<GIOResponse>(
-                &hyper::body::to_bytes(gio_response)
+                &utils::response_to_bytes(gio_response)
                     .await
                     .expect("error get response from rollup_http_server qio request"),
             )
             .unwrap();
 
             HttpResponse::Ok()
-                .append_header((hyper::header::CONTENT_TYPE, "application/octet-stream"))
+                .append_header(ContentType::octet_stream())
                 .body(hex::decode(&gio_response.response[2..]).unwrap())
         }
         Err(e) => {
@@ -433,13 +436,13 @@ async fn hint(what: web::Path<String>) -> HttpResponse {
         domain: HINT,
         payload: format!("0x{}", hex::encode(what)),
     };
-    let client = hyper::Client::new();
+    let client = utils::create_client();
 
     let req = hyper::Request::builder()
         .method(hyper::Method::POST)
         .header(hyper::header::CONTENT_TYPE, "application/json")
         .uri("http://127.0.0.1:5004/gio")
-        .body(hyper::Body::from(
+        .body(utils::body_bytes(
             serde_json::to_string(&gio_request).unwrap(),
         ))
         .expect("gio request");
@@ -447,14 +450,14 @@ async fn hint(what: web::Path<String>) -> HttpResponse {
     match client.request(req).await {
         Ok(gio_response) => {
             let gio_response = serde_json::from_slice::<GIOResponse>(
-                &hyper::body::to_bytes(gio_response)
+                &utils::response_to_bytes(gio_response)
                     .await
                     .expect("error get response from rollup_http_server gio request"),
             )
             .unwrap();
 
             HttpResponse::Ok()
-                .append_header((hyper::header::CONTENT_TYPE, "application/octet-stream"))
+                .append_header(ContentType::octet_stream())
                 .body(hex::decode(&gio_response.response[2..]).unwrap())
         }
         Err(e) => {
