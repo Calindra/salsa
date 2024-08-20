@@ -9,7 +9,6 @@ use actix_web::web::{Bytes, BytesMut};
 use actix_web::{middleware::Logger, App, HttpResponse, HttpServer};
 use cid::Cid;
 use futures::StreamExt;
-use http_body_util::BodyExt;
 use ipfs_api_backend_hyper::{IpfsApi, IpfsClient, TryFromUri};
 use sha3::{Digest, Sha3_256};
 use std::io::Cursor;
@@ -246,8 +245,7 @@ async fn commit_state() -> HttpResponse {
             let _gio_response = serde_json::from_slice::<GIOResponse>(
                 &utils::response_to_bytes(gio_response)
                     .await
-                    .expect("error get response from rollup_http_server qio request")
-                    .to_vec(),
+                    .expect("error get response from rollup_http_server qio request"),
             )
             .unwrap();
 

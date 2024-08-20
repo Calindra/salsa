@@ -120,7 +120,7 @@ mod tests {
     async fn test_server() {
         let (tx, rx) = oneshot::channel();
         let server_task = task::spawn(start_server(tx));
-        let _ = rx.await.expect("Server failed to start");
+        rx.await.expect("Server failed to start");
         let gio_request = GIORequest {
             domain: 0x100,
             payload: hex::encode(vec![0, 0, 0]),
@@ -148,7 +148,7 @@ mod tests {
                 server_handle = handle;
             }
             Err(ex) => {
-                eprint!("Error instantiating rollup http service {}", ex.to_string());
+                eprint!("Error instantiating rollup http service {}", ex);
             }
         };
         Context {
@@ -179,7 +179,7 @@ mod tests {
     ) -> Result<(), Box<dyn std::error::Error>> {
         let (tx, rx) = oneshot::channel();
         let server_task = task::spawn(start_server(tx));
-        let _ = rx.await.expect("Server failed to start");
+        rx.await.expect("Server failed to start");
         let context = context_future.await;
         let client = utils::create_client();
         let req = hyper::Request::builder()
@@ -214,7 +214,7 @@ mod tests {
     ) -> Result<(), Box<dyn std::error::Error>> {
         let (tx, rx) = oneshot::channel();
         let server_task = task::spawn(start_server(tx));
-        let _ = rx.await.expect("Server failed to start");
+        rx.await.expect("Server failed to start");
         let context = context_future.await;
         let client = utils::create_client();
         let req = hyper::Request::builder()
@@ -250,7 +250,7 @@ mod tests {
     ) -> Result<(), Box<dyn std::error::Error>> {
         let (tx, rx) = oneshot::channel();
         let server_task = task::spawn(start_server(tx));
-        let _ = rx.await.expect("Server failed to start");
+        rx.await.expect("Server failed to start");
         let context = context_future.await;
         let client = utils::create_client();
         let req = hyper::Request::builder()
@@ -286,7 +286,7 @@ mod tests {
     ) -> Result<(), Box<dyn std::error::Error>> {
         let (tx, rx) = oneshot::channel();
         let server_task = task::spawn(start_server(tx));
-        let _ = rx.await.expect("Server failed to start");
+        rx.await.expect("Server failed to start");
         let context = context_future.await;
 
         let client = utils::create_client();
@@ -337,7 +337,7 @@ mod tests {
     async fn test_get_data_fail(context_future: impl Future<Output = Context>) {
         let (tx, rx) = oneshot::channel();
         let server_task = task::spawn(start_server(tx));
-        let _ = rx.await.expect("Server failed to start");
+        rx.await.expect("Server failed to start");
         let context = context_future.await;
 
         let client = utils::create_client();
