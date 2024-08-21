@@ -30,7 +30,6 @@ jobs:
           cross build --release --target armv7-unknown-linux-gnueabihf
           cross build --release --target aarch64-unknown-linux-gnu
           cross build --release --target i686-unknown-linux-gnu
-          cross build --release --target riscv64gc-unknown-linux-gnu
       
       - name: Prepare binaries
         run: |
