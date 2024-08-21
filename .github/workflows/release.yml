@@ -20,7 +20,22 @@ jobs:
           override: true
 
       - name: Build the executable
-        run: cargo build --release
+        run: |
+          sudo apt update && sudo apt install libc6
+          cargo install cross
+          cross build --release --target x86_64-unknown-linux-gnu
+          cross build --release --target armv7-unknown-linux-gnueabihf
+          cross build --release --target aarch64-unknown-linux-gnu
+          cross build --release --target i686-unknown-linux-gnu
+          cross build --release --target riscv64gc-unknown-linux-gnu
+      
+      - name: Prepare binaries
+        run: |
+          cp target/riscv64gc-unknown-linux-gnu/release/salsa ./salsa-riscv64gc
+          cp target/x86_64-unknown-linux-gnu/release/salsa ./salsa-x86_64
+          cp target/armv7-unknown-linux-gnueabihf/release/salsa ./salsa-armv7
+          cp target/aarch64-unknown-linux-gnu/release/salsa ./salsa-aarch64
+          cp target/i686-unknown-linux-gnu/release/salsa ./salsa-i686
 
       - name: Create Release
         id: create_release
@@ -34,12 +49,7 @@ jobs:
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
-      - name: Upload Release Asset
-        uses: actions/upload-release-asset@v1
-        with:
-          upload_url: ${{ steps.create_release.outputs.upload_url }}
-          asset_path: ./target/release/salsa
-          asset_name: salsa
-          asset_content_type: application/octet-stream
+      - name: Release
+        uses: docker://antonyurchenko/git-release:v5
         env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}  # Certifique-se que o token está disponível aqui também
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
