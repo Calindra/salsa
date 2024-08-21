@@ -14,7 +14,7 @@ jobs:
 
     steps:
       - name: Checkout repository
-        uses: actions/checkout@v3
+        uses: actions/checkout@v4
 
       - name: Set up Rust
         uses: actions-rs/toolchain@v1
@@ -26,6 +26,7 @@ jobs:
         run: |
           sudo apt update && sudo apt install libc6
           cargo install cross
+          cargo add aarch64-apple-darwin
           cross build --release --target aarch64-apple-darwin
           cross build --release --target x86_64-unknown-linux-gnu
           cross build --release --target aarch64-unknown-linux-gnu
