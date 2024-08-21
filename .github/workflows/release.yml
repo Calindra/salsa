@@ -2,8 +2,11 @@ name: Release Executable
 
 on:
   push:
-    branches:
-      - main
+    tags:
+    - "v[0-9]+.[0-9]+.[0-9]+"
+
+env:
+  CARGO_TERM_COLOR: always
 
 jobs:
   build:
@@ -36,18 +39,6 @@ jobs:
           cp target/armv7-unknown-linux-gnueabihf/release/salsa ./salsa-armv7
           cp target/aarch64-unknown-linux-gnu/release/salsa ./salsa-aarch64
           cp target/i686-unknown-linux-gnu/release/salsa ./salsa-i686
-
-      - name: Create Release
-        id: create_release
-        uses: actions/create-release@v1
-        with:
-          tag_name: v1.0.${{ github.run_number }}
-          release_name: Release v1.0.${{ github.run_number }}
-          draft: false
-          prerelease: false
-          generate_release_notes: true
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
       - name: Release
         uses: docker://antonyurchenko/git-release:v5
