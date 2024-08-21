@@ -1,0 +1,13 @@
+[target.aarch64-apple-darwin.dependencies.actix-web]
+version = "4"
+default-features = false
+features = [
+    "compat",
+    "compress-brotli",
+    "compress-gzip",
+    # "compress-zstd",
+    "cookies",
+    "http2",
+    "macros",
+    "unicode",
+]

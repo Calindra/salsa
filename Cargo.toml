@@ -4,18 +4,34 @@ version = "0.1.0"
 edition = "2021"
 
 [dependencies]
-actix-web = "4"
+actix-web = { version = "4", no-default-features = true, features = [
+    "compat",
+    "compress-brotli",
+    "compress-gzip",
+    "compress-zstd",
+    "cookies",
+    "http2",
+    "macros",
+    "unicode",
+] }
 getopts = "0.2"
 env_logger = "0.9"
 log = "0.4"
-tokio = { version = "1.14", features = ["macros", "time", "rt-multi-thread", "process"] }
+tokio = { version = "1.14", features = [
+    "macros",
+    "time",
+    "rt-multi-thread",
+    "process",
+] }
 hyper = { version = "0.14", features = ["http1", "runtime", "client"] }
 actix-server = "2.0"
 sha3 = "0.10.8"
 cid = "0.11.0"
-ipfs-api-backend-hyper = { version = "0.6.0", features = ["with-send-sync"], default-features = false }
+ipfs-api-backend-hyper = { version = "0.6.0", features = [
+    "with-send-sync",
+], default-features = false }
 futures = "0.3.29"
-serde = { version = "1.0", features = ["derive"]}
+serde = { version = "1.0", features = ["derive"] }
 serde_json = "1.0"
 hex = "0.4"
 validator = { version = "0.16", features = ["derive"] }
