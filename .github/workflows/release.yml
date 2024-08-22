@@ -104,10 +104,15 @@ jobs:
 
           echo "release_name=${BIN_RELEASE}" >> $GITHUB_OUTPUT
 
-      - name: Generate checksum
-        shell: bash
+      - name: Generate checksum (Linux / Windows)
+        if: matrix.platform == 'linux' || matrix.platform == 'win32'
         run: |
           sha256sum ${{ steps.prepare.outputs.release_name }} > ${{ steps.prepare.outputs.release_name }}.sha256
+
+      - name: Generate checksum (Darwin)
+        if: matrix.platform == 'darwin'
+        run: |
+          shasum -a 256 ${{ steps.prepare.outputs.release_name }} > ${{ steps.prepare.outputs.release_name }}.sha256
 
       - name: Create release
         uses: softprops/action-gh-release@v2
