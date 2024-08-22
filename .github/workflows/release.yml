@@ -140,12 +140,6 @@ jobs:
         with:
           targets: x86_64-unknown-linux-gnu
 
-      - name: Setup cache
-        uses: Swatinem/rust-cache@v2
-        with:
-          key: x86_64-unknown-linux-gnu
-          cache-on-failure: true
-
       - name: Run tests
         run: |
           cargo test -- --show-output --test-threads=1
