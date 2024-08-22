@@ -15,6 +15,10 @@ jobs:
     name: ${{ matrix.target }} (${{ matrix.runner }})
     runs-on: ${{ matrix.runner }}
     timeout-minutes: 240
+    outputs:
+      release_name: ${{ steps.prepare.outputs.release_name }}
+      versioned_name: ${{ steps.prepare.outputs.versioned_name }}
+      output_path: ${{ steps.prepare.outputs.output_path }}
     strategy:
       fail-fast: false
       matrix:
@@ -83,6 +87,7 @@ jobs:
         run: cross build --locked --release --target ${{ matrix.target }}
 
       - name: Prepare binaries
+        id: prepare
         shell: bash
         run: |
           BIN_SUFFIX=""
@@ -100,9 +105,13 @@ jobs:
           # Move the built binary where you want it
           mv -v "${BIN_OUTPUT}" "./${BIN_RELEASE}"
 
-      - name: Release
-        uses: docker://antonyurchenko/git-release:v5
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          echo "release_name=${BIN_RELEASE}" >> $GITHUB_OUTPUT
+          echo "versioned_name=${BIN_RELEASE_VERSIONED}" >> $GITHUB_OUTPUT
+
+      - name: Create release
+        uses: softprops/action-gh-release@v2
         with:
-          args: salsa-*
+          name: ${{ steps.prepare.outputs.release_name }}
+          tag_name: ${{ steps.prepare.outputs.versioned_name }}
+          files: |
+            ${{ steps.prepare.outputs.release_name }}
