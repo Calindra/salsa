@@ -11,77 +11,34 @@ env:
 
 jobs:
   build:
-    name: ${{ matrix.target }} (${{ matrix.runner }})
-    runs-on: ${{ matrix.runner }}
-    timeout-minutes: 30
-    strategy:
-      fail-fast: false
-      matrix:
-        include:
-          # `runner`: GHA runner label
-          # `target`: Rust build target triple
-          # `platform` and `arch`: Used in tarball names
-          - runner: Linux-22.04
-            target: x86_64-unknown-linux-gnu
-            platform: linux
-            arch: amd64
-          - runner: Linux-22.04
-            target: aarch64-unknown-linux-gnu
-            platform: linux
-            arch: arm64
-          - runner: macos-12-large
-            target: x86_64-apple-darwin
-            platform: darwin
-            arch: amd64
-          - runner: macos-latest-large
-            target: aarch64-apple-darwin
-            platform: darwin
-            arch: arm64
-          - runner: Windows
-            target: x86_64-pc-windows-msvc
-            platform: win32
-            arch: amd64
+    runs-on: ubuntu-latest
 
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
 
-      - uses: dtolnay/rust-toolchain@stable
+      - name: Set up Rust
+        uses: actions-rs/toolchain@v1
         with:
-          targets: ${{ matrix.target }}
-      - uses: Swatinem/rust-cache@v2
-        with:
-          key: ${{ matrix.target }}
-          cache-on-failure: true
+          toolchain: stable
+          override: true
 
-      - name: Apple M1 setup
-        if: matrix.target == 'aarch64-apple-darwin'
+      - name: Build the executable
         run: |
-          echo "SDKROOT=$(xcrun -sdk macosx --show-sdk-path)" >> $GITHUB_ENV
-          echo "MACOSX_DEPLOYMENT_TARGET=$(xcrun -sdk macosx --show-sdk-platform-version)" >> $GITHUB_ENV
-
-      - name: Linux ARM setup
-        if: matrix.target == 'aarch64-unknown-linux-gnu'
-        run: |
-          sudo apt-get update -y
-          sudo apt-get install -y gcc-aarch64-linux-gnu
-          echo "CARGO_TARGET_AARCH64_UNKNOWN_LINUX_GNU_LINKER=aarch64-linux-gnu-gcc" >> $GITHUB_ENV
-
-      - name: Build binaries
-        shell: bash
-        run: |
-          set -eo pipefail
-          target="${{ matrix.target }}"
-          flags=(--release --bins)
-          cargo build --target "$target" "${flags[@]}"
+          sudo apt update && sudo apt install libc6 zstd
+          rustup target add aarch64-apple-darwin
+          cargo install cross
+          cross build --release --target --no-default-features aarch64-apple-darwin
+          cross build --release --target x86_64-unknown-linux-gnu
+          cross build --release --target aarch64-unknown-linux-gnu
+          cross build --release --target x86_64-pc-windows-msvc
 
       - name: Prepare binaries
-        env:
-          TARGET: ${{ matrix.target }}
-        shell: bash
         run: |
-          [[ "$TARGET" == *windows* ]] && exe=".exe"
-          cp target/$TARGET/release/salsa ./salsa-$TARGET$exe
+          cp target/aarch64-apple-darwin/release/salsa ./salsa-aarch64-apple-darwin
+          cp target/x86_64-unknown-linux-gnu/release/salsa ./salsa-x86_64
+          cp target/aarch64-unknown-linux-gnu/release/salsa ./salsa-aarch64
+          cp target/x86_64-pc-windows-msvc/release/salsa.exe ./salsa-x86_64.exe
 
       - name: Release
         uses: docker://antonyurchenko/git-release:v5
