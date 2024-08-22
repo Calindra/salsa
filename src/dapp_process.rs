@@ -14,9 +14,8 @@
 // limitations under the License.
 //
 
+use crate::{rollup::Exception, utils};
 use tokio::process::Command;
-
-use crate::rollup::Exception;
 
 /// Execute the dapp command and throw a rollup exception if it fails or exits
 pub async fn run(args: Vec<String>) {
@@ -36,14 +35,13 @@ pub async fn run(args: Vec<String>) {
     let exception = Exception {
         payload: String::from("0x") + &hex::encode(message),
     };
-    let client = hyper::Client::new();
+    let client = utils::create_client();
+    let body = utils::body_bytes(serde_json::to_string(&exception).unwrap());
     let req = hyper::Request::builder()
         .method(hyper::Method::POST)
         .header(hyper::header::CONTENT_TYPE, "application/json")
         .uri("http://127.0.0.1:5004/exception")
-        .body(hyper::Body::from(
-            serde_json::to_string(&exception).unwrap(),
-        ))
+        .body(body)
         .expect("exception request");
     match client.request(req).await {
         Ok(_) => {

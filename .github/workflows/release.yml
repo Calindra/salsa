@@ -1,9 +1,6 @@
 name: Release Executable
 
-on:
-  push:
-    tags:
-      - "v[0-9]+.[0-9]+.[0-9]+"
+on: push
 
 env:
   CARGO_TERM_COLOR: always
@@ -14,10 +11,11 @@ jobs:
   build:
     name: ${{ matrix.target }} (${{ matrix.runner }})
     runs-on: ${{ matrix.runner }}
+    if: startsWith(github.ref, 'refs/tags/v')
+    needs: [test]
     timeout-minutes: 240
     outputs:
       release_name: ${{ steps.prepare.outputs.release_name }}
-      versioned_name: ${{ steps.prepare.outputs.versioned_name }}
     strategy:
       fail-fast: false
       matrix:
@@ -105,7 +103,22 @@ jobs:
           mv -v "${BIN_OUTPUT}" "./${BIN_RELEASE}"
 
           echo "release_name=${BIN_RELEASE}" >> $GITHUB_OUTPUT
-          echo "versioned_name=${BIN_RELEASE_VERSIONED}" >> $GITHUB_OUTPUT
+
+      - name: Generate checksum (Linux)
+        if: matrix.platform == 'linux'
+        run: |
+          sha256sum ${{ steps.prepare.outputs.release_name }} > ${{ steps.prepare.outputs.release_name }}.sha256
+
+      - name: Generate checksum (Darwin)
+        if: matrix.platform == 'darwin'
+        run: |
+          shasum -a 256 ${{ steps.prepare.outputs.release_name }} > ${{ steps.prepare.outputs.release_name }}.sha256
+
+      - name: Generate checksum (Windows)
+        if: matrix.platform == 'win32'
+        shell: pwsh
+        run: |
+          Get-FileHash ${{ steps.prepare.outputs.release_name }} -Algorithm SHA256 | Format-List -Property Hash > ${{ steps.prepare.outputs.release_name }}.sha256
 
       - name: Create release
         uses: softprops/action-gh-release@v2
@@ -113,3 +126,20 @@ jobs:
           prerelease: true
           files: |
             ${{ steps.prepare.outputs.release_name }}
+            ${{ steps.prepare.outputs.release_name }}.sha256
+
+  test:
+    name: Test
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Setup Rust
+        uses: dtolnay/rust-toolchain@stable
+        with:
+          targets: x86_64-unknown-linux-gnu
+
+      - name: Run tests
+        run: |
+          cargo test -- --show-output --test-threads=1
