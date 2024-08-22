@@ -2,51 +2,114 @@ name: Release Executable
 
 on:
   push:
-    branches:
-      - main
+    tags:
+      - "v[0-9]+.[0-9]+.[0-9]+"
+
+env:
+  CARGO_TERM_COLOR: always
+  DEBIAN_FRONTEND: noninteractive
+  PROJECT_NAME: salsa
 
 jobs:
   build:
-    name: Build and test
-    runs-on: ubuntu-latest
+    name: ${{ matrix.target }} (${{ matrix.runner }})
+    runs-on: ${{ matrix.runner }}
+    timeout-minutes: 240
+    outputs:
+      release_name: ${{ steps.prepare.outputs.release_name }}
+      versioned_name: ${{ steps.prepare.outputs.versioned_name }}
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          # `runner`: GHA runner label
+          # `target`: Rust build target triple
+          # `platform` and `arch`: Used in bin names
+          - name: linux-amd64
+            runner: ubuntu-latest
+            target: x86_64-unknown-linux-gnu
+            platform: linux
+            arch: amd64
+          - name: linux-arm64
+            runner: ubuntu-latest
+            target: aarch64-unknown-linux-gnu
+            platform: linux
+            arch: arm64
+          - name: macos-amd64
+            runner: macos-latest
+            target: x86_64-apple-darwin
+            platform: darwin
+            arch: amd64
+          - name: macos-arm64
+            runner: macos-latest
+            target: aarch64-apple-darwin
+            platform: darwin
+            arch: arm64
+          - name: win32-amd64
+            runner: windows-latest
+            target: x86_64-pc-windows-msvc
+            platform: win32
+            arch: amd64
 
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
 
-      # Deprecation warning
-      - name: Set up Rust
-        uses: actions-rs/toolchain@v1
+      - name: Setup Rust
+        uses: dtolnay/rust-toolchain@stable
         with:
-          toolchain: stable
-          override: true
+          targets: ${{ matrix.target }}
 
-      - name: Build the executable
-        run: cargo build --release
+      - name: Install cross
+        run: cargo install cross
 
-      - name: Cargo test
-        run: cargo test -- --show-output --test-threads=1
-
-      # Deprecation warning
-      - name: Create Release
-        id: create_release
-        uses: actions/create-release@v1
+      - name: Setup cache
+        uses: Swatinem/rust-cache@v2
         with:
-          tag_name: v1.0.${{ github.run_number }}
-          release_name: Release v1.0.${{ github.run_number }}
-          draft: false
-          prerelease: false
-          # generate_release_notes: true
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          key: ${{ matrix.target }}
+          cache-on-failure: true
 
-      # Deprecation warning
-      - name: Upload Release Asset
-        uses: actions/upload-release-asset@v1
+      - name: Apple M1 setup
+        if: matrix.target == 'aarch64-apple-darwin'
+        run: |
+          echo "SDKROOT=$(xcrun -sdk macosx --show-sdk-path)" >> $GITHUB_ENV
+          echo "MACOSX_DEPLOYMENT_TARGET=$(xcrun -sdk macosx --show-sdk-platform-version)" >> $GITHUB_ENV
+
+      - name: Linux ARM setup
+        if: matrix.target == 'aarch64-unknown-linux-gnu'
+        run: |
+          sudo apt-get update -y
+          sudo apt-get install -y gcc-aarch64-linux-gnu
+          echo "CARGO_TARGET_AARCH64_UNKNOWN_LINUX_GNU_LINKER=aarch64-linux-gnu-gcc" >> $GITHUB_ENV
+
+      - name: Build binaries
+        run: cross build --locked --release --target ${{ matrix.target }}
+
+      - name: Prepare binaries
+        id: prepare
+        shell: bash
+        run: |
+          BIN_SUFFIX=""
+          if [[ "${{ matrix.runner }}" == "windows-latest" ]]; then
+            BIN_SUFFIX=".exe"
+          fi
+
+          # The built binary output location
+          BIN_OUTPUT="target/${{ matrix.target }}/release/${PROJECT_NAME}${BIN_SUFFIX}"
+
+          # Define a better name for the final binary
+          BIN_RELEASE="${PROJECT_NAME}-${{ matrix.name }}${BIN_SUFFIX}"
+          BIN_RELEASE_VERSIONED="${PROJECT_NAME}-${{ github.ref_name }}-${{ matrix.name }}${BIN_SUFFIX}"
+
+          # Move the built binary where you want it
+          mv -v "${BIN_OUTPUT}" "./${BIN_RELEASE}"
+
+          echo "release_name=${BIN_RELEASE}" >> $GITHUB_OUTPUT
+          echo "versioned_name=${BIN_RELEASE_VERSIONED}" >> $GITHUB_OUTPUT
+
+      - name: Create release
+        uses: softprops/action-gh-release@v2
         with:
-          upload_url: ${{ steps.create_release.outputs.upload_url }}
-          asset_path: ./target/release/salsa
-          asset_name: salsa
-          asset_content_type: application/octet-stream
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          prerelease: true
+          files: |
+            ${{ steps.prepare.outputs.release_name }}
