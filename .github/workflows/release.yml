@@ -26,6 +26,7 @@ jobs:
       - name: Build the executable
         run: |
           sudo apt update && sudo apt install libc6
+
           rustup target add aarch64-apple-darwin
           cargo install cross
           cross build --release --target aarch64-apple-darwin
