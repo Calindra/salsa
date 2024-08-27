@@ -8,13 +8,18 @@ actix-web = "4"
 getopts = "0.2"
 env_logger = "0.11"
 log = "0.4"
-tokio = { version = "1", features = ["macros", "time", "rt-multi-thread", "process"] }
+tokio = { version = "1", features = [
+  "macros",
+  "time",
+  "rt-multi-thread",
+  "process",
+] }
 hyper = { version = "1", features = ["http1", "client", "server"] }
 actix-server = "2.0"
 sha3 = "0.10.8"
 cid = "0.11.0"
 ipfs-api-backend-hyper = { version = "0.6.0", features = [
-    "with-send-sync",
+  "with-send-sync",
 ], default-features = false }
 futures = "0.3.29"
 serde = { version = "1.0", features = ["derive"] }
@@ -22,6 +27,30 @@ serde_json = "1.0"
 hex = "0.4"
 validator = { version = "0.18", features = ["derive"] }
 rstest = "0.22"
-hyper-util = { version = "0.1.7", features = ["client", "client-legacy", "http1", "service"] }
+hyper-util = { version = "0.1.7", features = [
+  "client",
+  "client-legacy",
+  "http1",
+  "service",
+] }
 http-body-util = "0.1"
 tower = "0.5.0"
+# progenitor-client = "0.7.0"
+progenitor-client = { git = "https://github.com/oxidecomputer/progenitor" }
+
+[build-dependencies]
+# progenitor = "0.7.0"
+progenitor = { git = "https://github.com/oxidecomputer/progenitor" }
+serde_yml = "0.0.12"
+syn = "2"
+prettyplease = "0.2"
+hyper = { version = "1", features = ["http1", "client"] }
+http-body-util = "0.1"
+hyper-rustls = "0.27"
+hyper-util = { version = "0.1.7", features = [
+  "client",
+  "client-legacy",
+  "http1",
+] }
+tokio = { version = "1", features = ["macros", "rt-multi-thread"] }
+openapiv3 = "2.0.0"
